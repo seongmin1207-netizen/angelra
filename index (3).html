@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ANGELA — AI 비서</title>
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="개인 AI 비서 안젤라">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--text:#f5f5f7;--dim:#8e8e93;--acc:#64d2ff;--acc2:#bf5af2;--blue:#0a84ff;--glass:rgba(255,255,255,.06);--stroke:rgba(255,255,255,.12);color-scheme:dark}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#000;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Pretendard","Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit}
+.glass{background:var(--glass);border:1px solid var(--stroke);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);box-shadow:0 12px 44px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.09)}
+.top{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:calc(14px + env(safe-area-inset-top,0px)) 18px 0;pointer-events:none}
+.top>*{pointer-events:auto}
+.brand b{font-weight:600;letter-spacing:.3em;font-size:13px}
+.brand span{display:block;color:var(--dim);font-size:11px;margin-top:2px}
+.tools{display:flex;gap:8px;align-items:center}
+.pill{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:99px;font-size:12px;color:var(--dim)}
+.dot{width:7px;height:7px;border-radius:50%;background:#30d158;box-shadow:0 0 10px #30d158;transition:.3s;flex:none}
+.dot.thinking{background:#ff9f0a;box-shadow:0 0 10px #ff9f0a}
+.dot.speaking{background:var(--acc);box-shadow:0 0 12px var(--acc)}
+.ic{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--stroke);background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);cursor:pointer;font-size:11px;font-weight:600;transition:border-color .2s,box-shadow .2s,opacity .2s}
+.ic svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ic:hover,.ic.on{border-color:var(--acc);box-shadow:0 0 16px rgba(100,210,255,.35)}
+.ic.off{opacity:.45}
+.ic:focus-visible,.chip:focus-visible,.go:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.hero{position:fixed;top:calc(68px + env(safe-area-inset-top,0px));left:0;right:0;text-align:center;pointer-events:none;z-index:2;padding:0 16px}
+.hero h1{font-weight:200;font-size:clamp(26px,4.4vw,46px);letter-spacing:-.02em;background:linear-gradient(180deg,#fff,rgba(255,255,255,.5));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--dim);font-size:14px;margin-top:6px}
+.side{position:fixed;top:50%;transform:translateY(-50%);width:252px;z-index:3;display:none;flex-direction:column;gap:14px}
+.side.l{left:30px}.side.r{right:30px}
+@media(min-width:1000px){.side{display:flex}}
+.card{padding:16px 18px;border-radius:22px;transition:transform .12s linear;will-change:transform}
+.card h3{font-size:12px;font-weight:500;color:var(--dim);margin-bottom:12px}
+.mt{display:grid;grid-template-columns:34px 1fr 40px;gap:8px;align-items:center;font-size:12px;color:var(--dim);margin:10px 0}
+.mt em{font-style:normal;text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+.bar{height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;width:30%;border-radius:4px;background:linear-gradient(90deg,var(--blue),var(--acc));box-shadow:0 0 10px var(--acc);transition:width .9s cubic-bezier(.3,.7,.2,1)}
+#clk{font-size:36px;font-weight:200;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+#dt{color:var(--dim);font-size:13px;margin-top:2px}
+#log{list-style:none;display:flex;flex-direction:column;gap:7px}
+#log li{font-size:12px;color:var(--dim);line-height:1.4;animation:in .4s ease}
+#log time{color:var(--acc);margin-right:6px;font-variant-numeric:tabular-nums}
+@keyframes in{from{opacity:0;transform:translateY(-4px)}}
+.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(680px,calc(100% - 24px));z-index:5;padding:14px;border-radius:26px}
+.st{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-bottom:8px}
+#msgs{max-height:clamp(70px,16vh,150px);overflow-y:auto;display:flex;flex-direction:column;gap:7px;font-size:14px;line-height:1.5;scrollbar-width:none}
+#msgs::-webkit-scrollbar{display:none}
+.m.u{align-self:flex-end;background:linear-gradient(180deg,#0a84ff,#0066d6);padding:6px 13px;border-radius:17px 17px 4px 17px;max-width:85%}
+.m.j{border-left:2px solid var(--acc);padding-left:10px;text-shadow:0 0 18px rgba(100,210,255,.35)}
+.m a{color:var(--acc);text-decoration:underline;text-underline-offset:3px}
+.chips{display:flex;gap:8px;overflow-x:auto;margin:10px 0;scrollbar-width:none;padding:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:7px 14px;border-radius:99px;border:1px solid var(--stroke);background:rgba(255,255,255,.05);cursor:pointer;font-size:13px;transition:border-color .2s,box-shadow .2s,transform .2s}
+.chip:hover{border-color:var(--acc);box-shadow:0 0 14px rgba(100,210,255,.35);transform:translateY(-1px)}
+.row{display:flex;gap:8px;align-items:center}
+input{flex:1;min-width:0;background:rgba(255,255,255,.07);border:1px solid var(--stroke);border-radius:99px;padding:11px 16px;color:var(--text);font:inherit;font-size:16px;outline:none;transition:.2s}
+input::placeholder{color:#6e6e73}
+input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(100,210,255,.18)}
+.ic.send{background:linear-gradient(180deg,#0a84ff,#0066d6);border-color:transparent}
+.ic.mic.on{color:#ff453a;border-color:#ff453a;box-shadow:0 0 16px rgba(255,69,58,.5)}
+#intro{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:rgba(0,0,0,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:opacity .9s,visibility .9s}
+#intro.off{opacity:0;visibility:hidden;pointer-events:none}
+.box{text-align:center;padding:38px 32px;max-width:360px;margin:16px;border-radius:30px}
+.box h2{font-weight:200;font-size:30px;letter-spacing:.28em;margin-bottom:10px}
+.box p{color:var(--dim);font-size:14px;line-height:1.6}
+.go{margin-top:24px;padding:13px 32px;border-radius:99px;border:1px solid var(--acc);background:rgba(100,210,255,.12);font-size:15px;cursor:pointer;box-shadow:0 0 26px rgba(100,210,255,.3);transition:.25s}
+.go:hover{background:rgba(100,210,255,.22);box-shadow:0 0 38px rgba(100,210,255,.5)}
+@media(prefers-reduced-motion:reduce){*{transition-duration:.01s!important;animation:none!important}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="top">
+  <div class="brand"><b>A.N.G.E.L.A</b><span>개인 AI 비서 · 로컬 데모</span></div>
+  <div class="tools">
+    <div class="pill glass"><span class="dot" id="topdot"></span><span id="fps">60 FPS</span></div>
+    <button class="ic" id="vBtn" title="음성 읽어주기" aria-label="음성 읽어주기 켜기/끄기">TTS</button>
+    <button class="ic" id="sBtn" title="소리 켜기/끄기" aria-label="소리 켜기/끄기"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 010 7"/></svg></button>
+  </div>
+</div>
+
+<div class="hero"><h1 id="hi">안녕하세요</h1><p>코어를 눌러 깨우거나, 화면 어디든 터치해 보세요</p></div>
+
+<aside class="side l">
+  <div class="card glass tilt"><h3>시스템 상태</h3>
+    <div class="mt">CPU<div class="bar"><i id="b1"></i></div><em id="v1">0%</em></div>
+    <div class="mt">메모리<div class="bar"><i id="b2"></i></div><em id="v2">0%</em></div>
+    <div class="mt">네트워크<div class="bar"><i id="b3"></i></div><em id="v3">0%</em></div>
+  </div>
+  <div class="card glass tilt"><h3>현재 시각</h3><div id="clk">--:--</div><div id="dt"></div></div>
+</aside>
+<aside class="side r">
+  <div class="card glass tilt"><h3>활동 기록</h3><ul id="log"></ul></div>
+</aside>
+
+<section class="dock glass" aria-label="안젤라 대화">
+  <div class="st"><span class="dot" id="dot"></span><span id="stl">대기 중</span></div>
+  <div id="msgs" aria-live="polite"></div>
+  <div class="chips">
+    <button class="chip" data-q="지금 몇 시야?">시간</button>
+    <button class="chip" id="songChip" data-q="__song__" title="누를 때마다 다음 곡으로 넘어가요">🎵 노래</button>
+    <button class="chip" data-q="음악 꺼줘">음악 끄기</button>
+    <button class="chip" data-q="보안 점검해줘">보안 점검</button>
+    <button class="chip" data-q="테마 바꿔줘">테마 변경</button>
+    <button class="chip" data-q="폭발!">폭발</button>
+    <button class="chip" data-q="도움말">도움말</button>
+  </div>
+  <div class="row">
+    <input id="inp" type="text" placeholder="질문하거나, 검색어 입력 후 돋보기를 누르세요" autocomplete="off" aria-label="명령 입력">
+    <button class="ic mic" id="mic" title="음성 입력" aria-label="음성 입력"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+    <button class="ic" id="gBtn" title="구글에서 검색" aria-label="구글에서 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button>
+    <button class="ic send" id="snd" title="보내기" aria-label="보내기"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+  </div>
+</section>
+
+<div id="intro"><div class="box glass"><h2>ANGELA</h2><p>Web Audio 신디사이저와 Canvas로 만든 AI 비서 데모입니다. 자유 질문은 Claude가 답하고, 노래와 효과음은 브라우저 안에서 직접 합성합니다.</p><button class="go" id="go">시스템 시작</button></div></div>
+
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const cv=$('#c'),ctx=cv.getContext('2d',{alpha:false});
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rnd=Math.random,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+let W=0,H=0,DPR=1,cx=0,cy=0,R=100,started=false;
+
+/* ---------- 팔레트 ---------- */
+const PAL=[{n:'시안',a:[100,210,255],b:[10,132,255],c:[191,90,242]},{n:'바이올렛',a:[191,90,242],b:[94,92,230],c:[255,105,180]},{n:'에메랄드',a:[48,209,88],b:[100,210,255],c:[255,214,10]},{n:'앰버',a:[255,159,10],b:[255,69,58],c:[255,214,10]}];
+let pi=0,pal=PAL[0];
+const glow=document.createElement('canvas');glow.width=glow.height=256;
+function lerp(a,b,t){return a+(b-a)*t}
+const NS=reduce?340:620,sx=new Float32Array(NS),sy=new Float32Array(NS),sz=new Float32Array(NS),cr=new Uint8Array(NS),cg=new Uint8Array(NS),cb=new Uint8Array(NS);
+for(let i=0;i<NS;i++){const y=1-i/(NS-1)*2,r=Math.sqrt(1-y*y),th=i*2.399963;sx[i]=Math.cos(th)*r;sy[i]=y;sz[i]=Math.sin(th)*r}
+function setPal(i){
+  pi=i%PAL.length;pal=PAL[pi];
+  const s=document.documentElement.style;s.setProperty('--acc',`rgb(${pal.a})`);s.setProperty('--acc2',`rgb(${pal.c})`);s.setProperty('--blue',`rgb(${pal.b})`);
+  const g=glow.getContext('2d'),gr=g.createRadialGradient(128,128,0,128,128,128);
+  gr.addColorStop(0,`rgba(${pal.b},.55)`);gr.addColorStop(.35,`rgba(${pal.a},.16)`);gr.addColorStop(1,`rgba(${pal.a},0)`);
+  g.clearRect(0,0,256,256);g.fillStyle=gr;g.fillRect(0,0,256,256);
+  for(let k=0;k<NS;k++){const t=(sy[k]+1)/2,A=t<.5?pal.a:pal.b,B=t<.5?pal.b:pal.c,u=t<.5?t*2:(t-.5)*2;cr[k]=lerp(A[0],B[0],u);cg[k]=lerp(A[1],B[1],u);cb[k]=lerp(A[2],B[2],u)}
+}
+setPal(0);
+
+/* ---------- 리사이즈 ---------- */
+function resize(){
+  DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+  cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);
+  R=Math.min(W*.2,H*.18);cx=W/2;cy=W<1000?H*.36:H*.46;
+}
+addEventListener('resize',resize);resize();
+
+/* ---------- 오디오 (Web Audio 신디사이저) ---------- */
+let AC=null,master,analyser,nb,abuf,muted=false;
+function initAudio(){
+  if(AC){if(AC.state==='suspended')AC.resume();return}
+  try{
+    AC=new(window.AudioContext||window.webkitAudioContext)();
+    master=AC.createGain();master.gain.value=muted?0:.85;
+    const comp=AC.createDynamicsCompressor();analyser=AC.createAnalyser();analyser.fftSize=256;abuf=new Uint8Array(analyser.fftSize);
+    master.connect(comp);comp.connect(analyser);analyser.connect(AC.destination);
+    nb=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=rnd()*2-1;
+    const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=260;f.Q.value=5;
+    const g=AC.createGain();g.gain.value=0;
+    [[55,'sawtooth'],[55.35,'sawtooth'],[110.2,'sine'],[165,'sine']].forEach(([fr,ty])=>{const o=AC.createOscillator();o.type=ty;o.frequency.value=fr;o.connect(f);o.start()});
+    const lfo=AC.createOscillator(),lg=AC.createGain();lfo.frequency.value=.07;lg.gain.value=110;lfo.connect(lg);lg.connect(f.frequency);lfo.start();
+    f.connect(g);g.connect(master);g.gain.linearRampToValueAtTime(.045,AC.currentTime+3);
+  }catch(e){AC=null}
+}
+function tone(f,dur,type='sine',vol=.1,to=0,delay=0,out=null){
+  if(!AC||muted)return;const t0=AC.currentTime+delay,o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.setValueAtTime(f,t0);if(to)o.frequency.exponentialRampToValueAtTime(to,t0+dur);
+  g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(vol,t0+.012);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  o.connect(g);g.connect(out||master);o.start(t0);o.stop(t0+dur+.05);
+}
+function noise(dur,vol,f0,f1,delay=0,out=null){
+  if(!AC||muted)return;const t0=AC.currentTime+delay,s=AC.createBufferSource(),b=AC.createBiquadFilter(),g=AC.createGain();
+  s.buffer=nb;s.loop=true;b.type='bandpass';b.Q.value=1.2;b.frequency.setValueAtTime(f0,t0);b.frequency.exponentialRampToValueAtTime(f1,t0+dur);
+  g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  s.connect(b);b.connect(g);g.connect(out||master);s.start(t0);s.stop(t0+dur+.05);
+}
+const sfx={
+  boom(){tone(200,.55,'sine',.5,38);noise(.45,.35,2400,200);tone(1400,.3,'triangle',.07,3200,.02)},
+  tick(){tone(2000,.04,'sine',.03)},
+  key(){tone(1100+rnd()*500,.025,'square',.01)},
+  send(){tone(520,.14,'sine',.12,880)},
+  ok(){tone(660,.14,'sine',.12);tone(990,.26,'sine',.12,0,.1)},
+  wake(){tone(300,.3,'sine',.2,900);tone(900,.35,'sine',.1,0,.18);noise(.25,.12,3000,600)},
+  boot(){tone(90,1.6,'sawtooth',.07,900);tone(440,.4,'sine',.1,0,1.1);tone(660,.4,'sine',.1,0,1.25);tone(880,.8,'sine',.1,0,1.4)}
+};
+let music=null;
+const TR={neon:{name:'Neon Drive',bpm:118},calm:{name:'Midnight Calm',bpm:70},core:{name:'Arc Reactor',bpm:90}};
+function stopMusic(){if(!music)return;music.mb.gain.setTargetAtTime(0,AC.currentTime,.08);clearInterval(music.iv);clearTimeout(music.to);music=null}
+function playTrack(id){
+  initAudio();if(!AC||muted)return null;stopMusic();
+  const T=TR[id],mb=AC.createGain(),q=60/T.bpm,fq=(r,n)=>r*Math.pow(2,n/12),ch=[[0,0],[-4,1],[3,1],[-2,1]];
+  mb.connect(master);music={mb};let bars=16;
+  if(id==='neon'){
+    for(let b=0;b<bars;b++){const [r,M]=ch[b%4],iv=M?[0,4,7,12,16,12,7,4]:[0,3,7,12,15,12,7,3];
+      for(let i=0;i<8;i++){const t0=b*4*q+i*q/2;tone(fq(220,r+iv[i]),.3,'triangle',.07,0,t0,mb);if(i%2)noise(.05,.05,7000,9000,t0,mb)}
+      for(let i=0;i<4;i++)tone(150,.2,'sine',.45,40,b*4*q+i*q,mb);
+      tone(fq(110,r),q*1.8,'sawtooth',.06,0,b*4*q,mb);tone(fq(110,r),q*1.8,'sawtooth',.06,0,b*4*q+2*q,mb)}
+  }else if(id==='calm'){
+    bars=12;
+    for(let b=0;b<bars;b++){const [r,M]=ch[b%4],iv=M?[0,4,7,11]:[0,3,7,10],t0=b*4*q;
+      iv.forEach((n,k)=>tone(fq(130.8,r+n),q*4.2,'sine',.05,0,t0+k*.06,mb));
+      tone(fq(65.4,r),q*4,'sine',.1,0,t0,mb);
+      for(let i=0;i<8;i++)if(rnd()<.35)tone(fq(523.25,r+iv[Math.floor(rnd()*4)]),1.4,'sine',.05,0,t0+i*q/2,mb)}
+  }else{
+    bars=12;
+    for(let b=0;b<bars;b++){const t0=b*4*q,r=[0,0,-2,-4][b%4];
+      for(let i=0;i<4;i++)tone(fq(55,r),.55,'sine',.28,0,t0+i*q,mb);
+      for(let i=0;i<8;i++)tone(fq(i%2?330:220,r),.35,'triangle',.05,0,t0+i*q/2,mb);
+      if(b%4===0){tone(120,.9,'sine',.5,35,t0,mb);noise(.7,.3,3000,150,t0,mb)}}
+    const rt=8*q;noise(rt,.22,200,7000,bars*4*q-rt,mb);tone(110,rt,'sawtooth',.05,880,bars*4*q-rt,mb);
+  }
+  music.iv=setInterval(()=>{kick=Math.max(kick,id==='calm'?.12:.3)},q*1000);
+  music.to=setTimeout(()=>{if(music&&music.mb===mb){stopMusic();log('곡 종료')}},bars*4*q*1000+800);
+  return T.name;
+}
+
+/* ---------- 상태 ---------- */
+let t=0,last=performance.now(),rotX=.25,rotY=0,autoY=0,px=0,py=0,tpx=0,tpy=0,mxp=-999,myp=-999,hx=0,hy=0,kick=0,lvl=0,speakA=0,spinNow=1,spinT=1,scan=0,state='idle',fpsN=0,fpsT=0;
+const F=5;let PX=0,PY=0,PZ=0,PS=1;
+const RING=[{rad:1.4,n:110,tx:.5,tz:.2,sp:.5},{rad:1.6,n:130,tx:-.9,tz:.6,sp:-.35},{rad:1.8,n:150,tx:1.3,tz:-.5,sp:.25}];
+RING.forEach(r=>{r.ct=Math.cos(r.tx);r.st=Math.sin(r.tx);r.cz=Math.cos(r.tz);r.sz=Math.sin(r.tz);r.ang=rnd()*6});
+const stars=Array.from({length:110},()=>({x:rnd(),y:rnd(),z:rnd()*.9+.1,p:rnd()*6}));
+const ps=[],waves=[];
+function col(){const k=rnd();return k<.35?pal.a:k<.65?pal.b:k<.85?pal.c:[255,255,255]}
+function burst(x,y,n,pw){
+  if(reduce)n=Math.ceil(n/3);
+  for(let i=0;i<n;i++){const a=rnd()*6.2832,v=pw*(.25+rnd()*.95);ps.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:.7+rnd()*.9,m:1.6,s:1+rnd()*2.2,c:col()})}
+  if(ps.length>600)ps.splice(0,ps.length-600);
+}
+function shock(x,y,v){waves.push({x,y,r:4,v,l:1})}
+function proj(x,y,z,Rr,cY,sY,cX,sX){
+  const x1=x*cY+z*sY,z1=-x*sY+z*cY,y1=y*cX-z1*sX,z2=y*sX+z1*cX,s=F/(F-z2);
+  PX=cx+x1*Rr*s;PY=cy+y1*Rr*s;PZ=z2;PS=s;
+}
+
+/* ---------- 렌더 루프 ---------- */
+const tiltEls=$$('.tilt');
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
+  fpsN++;fpsT+=dt;if(fpsT>.5){$('#fps').textContent=Math.round(fpsN/fpsT)+' FPS';fpsN=0;fpsT=0}
+  const k5=Math.min(1,dt*5);
+  px+=(tpx-px)*k5;py+=(tpy-py)*k5;spinNow+=(spinT-spinNow)*Math.min(1,dt*3);
+  autoY+=dt*.16*spinNow*(reduce?.3:1);
+  rotY+=(px*1.1+autoY-rotY)*k5;rotX+=(-py*.7+.25-rotX)*k5;
+  kick*=1-Math.min(1,dt*3.2);
+  let rms=0;
+  if(analyser&&!muted){analyser.getByteTimeDomainData(abuf);let s=0;for(let i=0;i<abuf.length;i+=2){const v=(abuf[i]-128)/128;s+=v*v}rms=Math.sqrt(s/(abuf.length/2))}
+  lvl+=(rms-lvl)*Math.min(1,dt*10);
+  const sp=state==='speaking'?.5+.5*Math.sin(t*14)*Math.sin(t*5.3):0;speakA+=(sp-speakA)*Math.min(1,dt*8);
+  const amp=.03+Math.min(lvl,.4)*.35+speakA*.1,Rr=R*(1+.025*Math.sin(t*1.5)+kick*.16+speakA*.05);
+  scan=Math.sin(t*.8);
+  const cY=Math.cos(rotY),sY=Math.sin(rotY),cX=Math.cos(rotX),sX=Math.sin(rotX);
+
+  ctx.globalCompositeOperation='source-over';ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighter';
+  ctx.globalAlpha=.55;ctx.drawImage(glow,cx-Rr*4.2,cy-Rr*4.2,Rr*8.4,Rr*8.4);
+  ctx.globalAlpha=clamp(.55+kick*.4+lvl+speakA*.3,0,1);ctx.drawImage(glow,cx-Rr*1.9,cy-Rr*1.9,Rr*3.8,Rr*3.8);
+  ctx.globalAlpha=1;
+
+  for(const s of stars){const a=.12+.35*s.z*(.6+.4*Math.sin(t*1.3+s.p));ctx.fillStyle=`rgba(255,255,255,${a.toFixed(2)})`;
+    const X=((s.x*W-px*26*s.z)%W+W)%W,Y=((s.y*H-py*18*s.z)%H+H)%H;ctx.fillRect(X,Y,s.z*1.6,s.z*1.6)}
+
+  for(let i=0;i<NS;i++){
+    const w=1+amp*Math.sin(i*.37+t*5)+kick*.1*Math.sin(i*.9);
+    proj(sx[i]*w,sy[i]*w,sz[i]*w,Rr,cY,sY,cX,sX);
+    const d=clamp((PZ+1.1)/2.2,0,1),b=Math.exp(-Math.pow((sy[i]-scan)*5,2)),al=Math.min(1,.09+.75*d*d+b*.6),z=(.8+1.4*d+b)*PS;
+    ctx.fillStyle=`rgba(${cr[i]},${cg[i]},${cb[i]},${al.toFixed(2)})`;ctx.fillRect(PX-z/2,PY-z/2,z,z);
+  }
+  for(const r of RING){
+    r.ang+=dt*r.sp*spinNow;ctx.beginPath();
+    const kk=1+kick*.12;
+    for(let j=0;j<r.n;j++){
+      const a=j/r.n*6.2832+r.ang,x0=Math.cos(a)*r.rad*kk,z0=Math.sin(a)*r.rad*kk,y1=-z0*r.st,z1=z0*r.ct;
+      proj(x0*r.cz-y1*r.sz,x0*r.sz+y1*r.cz,z1,Rr,cY,sY,cX,sX);
+      j?ctx.lineTo(PX,PY):ctx.moveTo(PX,PY);
+      if(j%9===0){const d=clamp((PZ+2)/4,0,1),z=(1.2+2.4*d)*PS;ctx.fillStyle=`rgba(${pal.a},${(.3+.7*d).toFixed(2)})`;ctx.fillRect(PX-z/2,PY-z/2,z,z)}
+    }
+    ctx.closePath();ctx.strokeStyle=`rgba(${pal.a},${(.12+kick*.2).toFixed(2)})`;ctx.lineWidth=1;ctx.stroke();
+  }
+
+  for(let i=waves.length-1;i>=0;i--){const w=waves[i];w.r+=w.v*dt;w.v*=Math.pow(.2,dt);w.l-=dt*.9;if(w.l<=0){waves.splice(i,1);continue}
+    ctx.strokeStyle=`rgba(${pal.a},${(w.l*.55).toFixed(2)})`;ctx.lineWidth=1+2*w.l;ctx.beginPath();ctx.arc(w.x,w.y,w.r,0,6.2832);ctx.stroke()}
+  const fr=Math.pow(.15,dt);
+  for(let i=ps.length-1;i>=0;i--){const p=ps[i];p.l-=dt;if(p.l<=0){ps[i]=ps[ps.length-1];ps.pop();continue}
+    p.vx*=fr;p.vy*=fr;p.vy+=40*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    const a=clamp(p.l/p.m*1.4,0,1),z=p.s*(.5+a);ctx.fillStyle=`rgba(${p.c[0]},${p.c[1]},${p.c[2]},${a.toFixed(2)})`;ctx.fillRect(p.x-z/2,p.y-z/2,z,z)}
+  if(mxp>-900){hx+=(mxp-hx)*Math.min(1,dt*9);hy+=(myp-hy)*Math.min(1,dt*9);ctx.globalAlpha=.3;ctx.drawImage(glow,hx-45,hy-45,90,90);ctx.globalAlpha=1}
+  ctx.globalCompositeOperation='source-over';
+
+  const rx=(-py*5).toFixed(2),ry=(px*7).toFixed(2);
+  for(const e of tiltEls)e.style.transform=`perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+}
+
+/* ---------- 포인터 (마우스 + 터치) ---------- */
+function track(e){mxp=e.clientX;myp=e.clientY;tpx=(e.clientX/W-.5)*2;tpy=(e.clientY/H-.5)*2;if(e.pointerType!=='mouse'){hx=mxp;hy=myp}}
+addEventListener('pointermove',track,{passive:true});
+let lastWake=0;
+addEventListener('pointerdown',e=>{
+  track(e);initAudio();
+  const ui=e.target.closest('button,input,.card,.dock,#intro');
+  if(ui){burst(e.clientX,e.clientY,18,170);if(started)sfx.tick();return}
+  const near=Math.hypot(e.clientX-cx,e.clientY-cy)<R*1.25;
+  burst(e.clientX,e.clientY,95,540);shock(e.clientX,e.clientY,520);shock(e.clientX,e.clientY,300);kick=1;
+  if(near&&started){sfx.wake();const n=performance.now();if(n-lastWake>3000&&state==='idle'){lastWake=n;setTimeout(()=>say(['네, 말씀하세요.','듣고 있어요. 무엇을 도와드릴까요?','대기 중입니다. 명령을 내려 주세요.'][Math.floor(rnd()*3)]),250)}}
+  else sfx.boom();
+},{passive:true});
+let lastHover=null;
+document.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse'||!started)return;const b=e.target.closest('button');if(b&&b!==lastHover)sfx.tick();lastHover=b},{passive:true});
+
+/* ---------- UI: 상태 / 로그 / 대화 ---------- */
+const msgs=$('#msgs'),inp=$('#inp'),LBL={idle:'대기 중',thinking:'처리 중',speaking:'응답 중'};
+function setState(s){state=s;$('#stl').textContent=LBL[s];$('#dot').className='dot '+s;$('#topdot').className='dot '+s;spinT=s==='thinking'?3.2:1}
+function addMsg(role,text){const d=document.createElement('div');d.className='m '+role;d.textContent=text;msgs.appendChild(d);while(msgs.children.length>8)msgs.firstChild.remove();msgs.scrollTop=msgs.scrollHeight;return d}
+const pad=n=>String(n).padStart(2,'0');
+function log(text){const ul=$('#log'),li=document.createElement('li'),d=new Date();li.innerHTML=`<time>${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}</time>`;li.appendChild(document.createTextNode(text));ul.prepend(li);while(ul.children.length>6)ul.lastChild.remove()}
+let voiceOn=false,tok=0;const synth=window.speechSynthesis;
+function speak(text,my){
+  if(!voiceOn||!synth)return;synth.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='ko-KR';u.rate=1.02;u.pitch=.85;
+  const v=synth.getVoices().find(v=>v.lang&&v.lang.startsWith('ko'));if(v)u.voice=v;u.onend=()=>{if(my===tok)setState('idle')};synth.speak(u);
+}
+function say(text,link){
+  const my=++tok;setState('speaking');const el=addMsg('j','');let i=0;speak(text,my);
+  const iv=setInterval(()=>{el.textContent=text.slice(0,++i);if(i%3===0)sfx.key();msgs.scrollTop=msgs.scrollHeight;
+    if(i>=text.length){clearInterval(iv);if(link){el.appendChild(document.createElement('br'));const a=document.createElement('a');a.href=link.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=link.label;el.appendChild(a);msgs.scrollTop=msgs.scrollHeight}setTimeout(()=>{if(my===tok&&(!voiceOn||!synth))setState('idle')},500);if(voiceOn&&synth)setTimeout(()=>{if(my===tok)setState('idle')},text.length*140+1500)}},24);
+}
+
+/* ---------- 공감 엔진 ---------- */
+let pend=null;
+const MEM_KEY='jarvis-mem-v1';
+function memGet(){try{return JSON.parse(localStorage.getItem(MEM_KEY))||{}}catch(e){return {}}}
+function memSet(o){try{localStorage.setItem(MEM_KEY,JSON.stringify(Object.assign(memGet(),o)))}catch(e){}}
+const nm=()=>{const n=memGet().name;return n?n+'님, ':''};
+const pick=a=>a[Math.floor(rnd()*a.length)];
+const EMO=[
+ {id:'tired',neg:1,re:/피곤|지쳤|지친|졸려|졸리|잠\s*와|잠이\s*안|못\s*잤|번아웃|기운\s*없|녹초/,pal:1,
+  r:['많이 지치셨군요. 오늘도 정말 애쓰셨어요.','몸이 보내는 신호일 수 있어요. 잠깐이라도 눈을 붙이는 건 어떨까요?','수고 많으셨어요. 지금은 잘하려고 애쓰지 않아도 괜찮아요.'],
+  ask:'잔잔한 곡을 틀어드릴까요?',act:'calm'},
+ {id:'sad',neg:1,re:/힘들|힘든|슬퍼|슬프|우울|눈물|울고\s*싶|울었|마음이\s*아파|속상|서러|허무|공허/,pal:1,
+  r:['마음이 많이 무거우시겠어요. 말씀해 주셔서 고마워요.','그런 날이 있죠. 혼자 견디지 않으셔도 돼요. 제가 여기 있을게요.','속상하셨겠어요. 천천히 이야기해 주셔도 괜찮아요.'],
+  ask:'잔잔한 곡을 틀어드릴까요?',act:'calm'},
+ {id:'anx',neg:1,re:/불안|걱정|초조|긴장|무서|두려|떨려|막막|겁나/,pal:2,
+  r:['불안하실 땐 마음이 계속 바빠지죠. 지금 이 순간은 안전해요.','걱정이 많으시군요. 숨을 천천히 들이쉬고 내쉬어 보세요. 저도 곁에 있을게요.','막막한 기분이 드실 수 있어요. 한 번에 하나씩만 같이 정리해 봐요.'],
+  ask:'마음이 가라앉는 잔잔한 곡을 틀어드릴까요?',act:'calm'},
+ {id:'stress',neg:1,re:/스트레스|짜증|화\s*나|화나|빡|열\s*받|열받|답답|억울|싫어\s*죽/,pal:3,
+  r:['정말 답답하셨겠어요. 그럴 만한 일이었던 것 같아요.','화가 나는 게 당연한 상황 같아요. 속에 담아두지 말고 풀어놓으셔도 돼요.','많이 참으셨네요. 잠시 숨을 돌려요.'],
+  ask:'기분 전환용 웅장한 곡을 틀어드릴까요?',act:'core'},
+ {id:'lonely',neg:1,re:/외로|쓸쓸|혼자인|아무도\s*없|심심|허전/,pal:1,
+  r:['외로운 기분이 드시는군요. 지금은 제가 여기 있어요.','혼자라고 느껴질 때가 있죠. 이야기 상대가 필요하시면 언제든 말씀하세요.','그런 마음 충분히 이해해요. 같이 이야기해요.'],
+  ask:'같이 들을 곡을 틀어드릴까요?',act:'neon'},
+ {id:'happy',neg:0,re:/기뻐|기쁘|행복|기분\s*좋|좋은\s*일|최고야|합격|성공했|해냈|신나서|설레|뿌듯/,pal:2,
+  r:['정말 좋은 소식이네요. 저도 덩달아 기뻐요.','축하드려요. 그만큼 노력하신 결과예요.','듣기만 해도 기분이 좋아지네요. 오늘 어떤 일이 있었는지 더 들려주세요.'],
+  ask:'축하 기분을 살려 신나는 곡을 틀어드릴까요?',act:'neon',fx:1},
+ {id:'thanks',neg:0,re:/고마워|감사|땡큐|thanks/,pal:-1,
+  r:['도움이 되었다니 기뻐요.','별말씀을요. 언제든 불러 주세요.','저야말로 함께해서 좋아요.']},
+ {id:'ok',neg:0,re:/^(괜찮아|괜찮아요|좀\s*나아졌|나아졌|좋아졌)/,pal:-1,
+  r:['다행이에요. 그래도 무리하지는 마세요.','그 말 들으니 마음이 놓여요.']}
+];
+const CRISIS=/죽고\s*싶|자살|자해|사라지고\s*싶|살기\s*싫|죽어버리|목숨을?\s*끊/;
+function empathy(q,has){
+  if(CRISIS.test(q)){
+    memSet({mood:'crisis',ts:Date.now()});
+    return '지금 정말 힘드시군요. 이야기해 주셔서 고마워요. 혼자 견디지 마시고, 지금 바로 전화로 도움을 받아 보세요. 자살예방상담전화 109, 정신건강위기상담 1577-0199는 24시간 이용할 수 있어요. 위급하면 112나 119에 연락해 주세요. 옆에 있는 가족이나 친구에게도 지금 힘들다고 말해 주시면 좋겠어요.';
+  }
+  if(has(/틀어|재생|노래|음악|곡\b|검색/))return null;
+  const nameM=q.match(/(?:내|제)\s*이름은?\s*([가-힣A-Za-z]{1,8})/);
+  if(nameM){const n=nameM[1].replace(/(이라고|라고|입니다|이에요|예요|이야|야)$/,'');if(n){memSet({name:n});return `${n}님, 기억해 둘게요. 앞으로 그렇게 불러드릴게요.`}}
+  const e=EMO.find(x=>x.re.test(q));
+  if(!e)return null;
+  if(e.neg)memSet({mood:e.id,ts:Date.now()});
+  if(e.pal>=0)setPal(e.pal);
+  if(e.fx){burst(cx,cy,120,480);shock(cx,cy,420);kick=.8}
+  else if(e.neg){kick=.25}
+  log('공감: '+e.id);
+  let t=nm()+pick(e.r);
+  const h=new Date().getHours();
+  if(e.id==='tired'&&(h>=23||h<5))t+=' 늦은 시간이에요. 오늘은 여기까지 하고 쉬시는 게 좋겠어요.';
+  if(e.ask){pend=e.act;t+=' '+e.ask}
+  return t;
+}
+function greet(){
+  const m=memGet(),n=m.name?m.name+'님, ':'';
+  if(m.mood==='crisis'&&Date.now()-(m.ts||0)<7*864e5)return `${n}다시 와 주셨네요. 지난번에 많이 힘들어 보여서 신경 쓰였어요. 지금은 좀 어떠세요?`;
+  const lab={tired:'피곤하다고',sad:'마음이 무겁다고',anx:'불안하다고',stress:'스트레스를 받았다고',lonely:'외롭다고'}[m.mood];
+  if(lab&&Date.now()-(m.ts||0)<3*864e5)return `${n}어서 오세요. 지난번에 ${lab} 하셨는데, 지금은 좀 괜찮으세요?`;
+  return `${n}시스템 온라인. 안녕하세요, 저는 안젤라입니다.`;
+}
+
+let songIdx=0;const SONGS=['neon','calm','core'];
+function answer(q){
+  const s=q.toLowerCase(),has=re=>re.test(s);
+  if(pend){const act=pend;pend=null;
+    if(/^(응|네|예|그래|좋아|ㅇㅇ|틀어|부탁|해줘|그럴까)/.test(q.trim())){const nm2=playTrack(act);if(nm2){log('재생: '+nm2);return `'${nm2}'을(를) 재생합니다. 편안한 시간이 되시길 바라요.`}return '소리가 꺼져 있어서 재생하지 못했어요. 스피커 버튼을 켜 주세요.'}
+    if(/^(아니|싫|됐|괜찮)/.test(q.trim()))return '알겠어요. 필요하실 때 언제든 말씀하세요.'}
+  const sm=q.match(/^(?:구글\s*)?(?:검색|search|google)\s*[:：]?\s*(.+)$/i)||q.match(/^(.+?)\s*(?:검색해\s*줘|검색해줘|검색해|찾아\s*줘|찾아줘)$/);
+  if(sm){const term=sm[1].trim();log('검색: '+term);return{text:`'${term}' 구글 검색 링크를 만들었어요. 이 페이지 안에서는 결과를 직접 가져올 수 없어서 새 탭으로 열어요.`,link:{href:'https://www.google.com/search?q='+encodeURIComponent(term),label:'구글에서 보기'}}}
+  { const em=sm?null:empathy(q,has); if(em)return em; }
+  if(has(/음악\s*(끄|꺼|정지|멈)|멈춰|그만|stop/)){stopMusic();return '음악을 멈췄어요.'}
+  if(has(/몇\s*시|시간|time/))return '지금은 '+new Date().toLocaleTimeString('ko-KR',{hour:'numeric',minute:'2-digit'})+'입니다.';
+  if(has(/날짜|오늘|요일|date/))return '오늘은 '+new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'})+'입니다.';
+  if(has(/음악|노래|곡|music|song|__song__/)){
+    if(muted)return '소리가 꺼져 있어요. 오른쪽 위 스피커 버튼으로 켜 주세요.';
+    const id=has(/신나|네온|neon|빠른/)?'neon':has(/잔잔|calm|밤|조용/)?'calm':has(/웅장|시네|리액터|reactor|코어|core/)?'core':SONGS[songIdx++%SONGS.length];
+    const nm=playTrack(id);if(!nm)return '오디오를 시작하지 못했어요. 시스템 시작 버튼을 먼저 눌러 주세요.';
+    log('재생: '+nm);return `'${nm}'을(를) 재생합니다. 직접 합성한 곡이에요. 노래 버튼을 다시 누르면 다음 곡으로 넘어가고, '음악 끄기'로 멈출 수 있어요.`}
+  if(has(/보안|security|스캔/)){['방화벽 점검','모듈 무결성 확인','네트워크 스캔'].forEach((m,i)=>setTimeout(()=>{log(m);sfx.tick()},500+i*600));setTimeout(()=>sfx.ok(),2300);return '보안 점검을 시뮬레이션했습니다. 위협 0건, 모든 모듈이 정상입니다.'}
+  if(has(/테마|색|color|theme/)){setPal(pi+1);log('테마: '+pal.n);return `테마를 '${pal.n}'(으)로 바꿨습니다.`}
+  if(has(/폭발|explode|boom/)){burst(cx,cy,200,640);shock(cx,cy,620);shock(cx,cy,380);kick=1;sfx.boom();return '코어 에너지를 방출했습니다.'}
+  if(has(/날씨|weather/))return '이 데모는 외부 서비스에 연결되어 있지 않아 날씨를 조회할 수 없어요. 실제 서비스에서는 기상 API를 호출해 알려드립니다.';
+  if(has(/일정|캘린더|schedule/))return '연결된 캘린더가 없어 일정을 볼 수 없어요. 실제 서비스에서는 오늘 일정을 요약해 드립니다.';
+  if(has(/도움|help|뭐\s*할|기능/))return `기분을 말씀하시면 공감하고 곡도 권해드려요. 시간·날짜 확인, 노래 버튼으로 3곡 순환 재생, 검색어 입력 후 돋보기 버튼으로 구글 검색, 보안 점검, 테마 변경, 폭발 효과가 가능해요. 그 밖의 질문은 Claude가 답합니다.`;
+  if(has(/안녕|hello|hi\b|안젤라|엔젤라|angela|자비스|jarvis/))return '안녕하세요. 모든 시스템이 정상 가동 중입니다. 무엇을 도와드릴까요?';
+  return null;
+}
+let sampler=null;const hist=[];
+if(window.claude&&claude.use)claude.use('sample').then(x=>{sampler=x}).catch(()=>{});
+async function aiAnswer(q){
+  const fb=`'${q.length>30?q.slice(0,30)+'…':q}' 명령은 이 환경에서는 처리할 수 없어요. '도움말'을 입력해 보세요.`;
+  if(!sampler)return fb;
+  try{
+    const r=await sampler(`당신은 AI 비서 안젤라로서 침착하고 정중하지만 따뜻하고 공감 능력이 높은 한국어 비서입니다. 사용자가 감정을 드러내면 먼저 그 감정을 인정하고 공감한 뒤 도움을 주세요. 섣불리 조언하거나 가르치려 하지 말고, 위기 신호가 있으면 109와 1577-0199를 안내하세요. 마크다운 없이 2~3문장으로 간결하게 답하세요. 실시간 웹 검색은 할 수 없으니 최신 정보가 필요하면 모른다고 말하고 검색어를 입력창에 쓰고 돋보기 버튼을 누르라고 안내하세요.\n\n${hist.slice(-6).join('\n')}\n사용자: ${q}`,{cache:false});
+    const t=(r.text||'').trim();if(!t)return fb;hist.push('사용자: '+q,'안젤라: '+t);return t;
+  }catch(e){return e&&e.code==='not_granted'?'AI 답변 권한이 허용되지 않았어요. 허용하시면 자유로운 질문에 답할 수 있어요.':fb}
+}
+function ask(q){
+  q=q.trim();if(!q||!started)return;addMsg('u',q);sfx.send();setState('thinking');log('입력: '+(q.length>16?q.slice(0,16)+'…':q));
+  setTimeout(async()=>{let r=answer(q);if(r===null)r=await aiAnswer(q);if(typeof r==='string')say(r);else say(r.text,r.link)},500+rnd()*350);
+}
+function submit(){const v=inp.value;inp.value='';ask(v)}
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)submit();else if(e.key.length===1)sfx.key()});
+$('#snd').addEventListener('click',submit);
+function gsearch(){
+  const v=inp.value.trim();
+  if(!started)return;
+  if(!v){inp.focus();inp.placeholder='검색어를 먼저 입력하세요';return}
+  inp.value='';inp.placeholder='질문하거나, 검색어 입력 후 돋보기를 누르세요';
+  addMsg('u','🔍 '+v);sfx.send();log('구글 검색: '+(v.length>16?v.slice(0,16)+'…':v));
+  const url='https://www.google.com/search?q='+encodeURIComponent(v);
+  const w=window.open(url,'_blank','noopener,noreferrer');
+  say(w?`'${v}' 구글 검색 결과를 새 탭으로 열었어요.`:`팝업이 차단됐어요. 아래 링크로 열어 주세요.`,w?null:{href:url,label:'구글에서 보기'});
+}
+$('#gBtn').addEventListener('click',gsearch);
+$$('.chip').forEach(c=>c.addEventListener('click',()=>ask(c.dataset.q)));
+
+/* 소리 / 음성 토글 */
+const sBtn=$('#sBtn'),vBtn=$('#vBtn');
+sBtn.addEventListener('click',()=>{initAudio();muted=!muted;if(master)master.gain.setTargetAtTime(muted?0:.85,AC.currentTime,.05);sBtn.classList.toggle('off',muted);if(!muted)sfx.ok()});
+if(!synth)vBtn.style.display='none';
+vBtn.classList.add('off');
+vBtn.addEventListener('click',()=>{voiceOn=!voiceOn;vBtn.classList.toggle('off',!voiceOn);vBtn.classList.toggle('on',voiceOn);if(!voiceOn&&synth)synth.cancel();sfx.tick()});
+/* 음성 입력 */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition,mic=$('#mic');
+if(!SR)mic.style.display='none';
+else mic.addEventListener('click',()=>{
+  try{const r=new SR();r.lang='ko-KR';r.onresult=e=>ask(e.results[0][0].transcript);r.onend=()=>mic.classList.remove('on');r.onerror=()=>mic.classList.remove('on');r.start();mic.classList.add('on');sfx.tick()}catch(e){mic.classList.remove('on')}
+});
+
+/* 시계 / 지표 */
+function clock(){const d=new Date();$('#clk').textContent=pad(d.getHours())+':'+pad(d.getMinutes());$('#dt').textContent=d.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'})}
+const mv=[22,48,35];
+function metrics(){[[0,6,70],[1,40,72],[2,8,92]].forEach(([i,lo,hi])=>{mv[i]=clamp(mv[i]+(rnd()-.5)*(i===1?5:26),lo,hi);const v=Math.round(mv[i]);$('#b'+(i+1)).style.width=v+'%';$('#v'+(i+1)).textContent=v+'%'})}
+const hr=new Date().getHours();
+$('#hi').textContent=hr<5?'늦은 밤이네요':hr<12?'좋은 아침입니다':hr<18?'좋은 오후입니다':'좋은 저녁입니다';
+clock();metrics();setInterval(clock,1000);setInterval(metrics,900);
+
+/* 시작 */
+$('#go').addEventListener('click',()=>{
+  if(started)return;started=true;initAudio();sfx.boot();$('#intro').classList.add('off');
+  kick=1;burst(cx,cy,140,420);shock(cx,cy,420);
+  ['코어 초기화','오디오 엔진 연결','렌더러 60FPS 목표','준비 완료'].forEach((m,i)=>setTimeout(()=>log(m),300+i*450));
+  setTimeout(()=>{say(greet());sfx.ok()},1500);
+});
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+document.addEventListener('visibilitychange',()=>{last=performance.now()});
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
